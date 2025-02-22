@@ -6,19 +6,14 @@
 </head>
 <body>
     <h2>Advanced DOM-Based XSS Test Page</h2>
-    <p>Masukkan parameter `input` di URL untuk melihat hasilnya.</p>
+    <p>Masukkan URL target di bawah ini:</p>
+    <input type="text" id="targetUrl" placeholder="Masukkan URL target" style="width: 300px;">
+    <button onclick="runTest()">Jalankan Uji</button>
     <div id="output"></div>
     <div id="encodedOutput"></div>
     <iframe id="testIframe" src="about:blank"></iframe>
 
     <script>
-        // Helper untuk mengambil parameter dari URL
-        function getParameterByName(name) {
-            let url = new URL(window.location.href);
-            return url.searchParams.get(name);
-        }
-
-        // Encode payload dalam berbagai format untuk pengujian XSS
         function encodePayload(payload) {
             return {
                 urlEncoded: encodeURIComponent(payload),
@@ -27,49 +22,29 @@
             };
         }
 
-        // Ambil input user
-        let userInput = getParameterByName('input');
-        if (userInput) {
-            let encodedPayloads = encodePayload(userInput);
-            
-            // VULNERABLE: Memasukkan input langsung ke innerHTML (Jangan gunakan ini dalam produksi!)
-            document.getElementById("output").innerHTML = "You entered: " + userInput;
-            
-            // Menampilkan versi encoded sebagai mitigasi
-            document.getElementById("encodedOutput").innerHTML = `
-                <p><b>URL Encoded:</b> ${encodedPayloads.urlEncoded}</p>
-                <p><b>Base64 Encoded:</b> ${encodedPayloads.base64}</p>
-                <p><b>HTML Entities:</b> ${encodedPayloads.htmlEntities}</p>
-            `;
-            
-            // Test Injection ke dalam Iframe
-            let iframe = document.getElementById("testIframe");
-            iframe.src = "javascript:'<script>alert(\"Iframe XSS\")</script>'";
-        }
+        function runTest() {
+            let targetUrl = document.getElementById("targetUrl").value;
+            if (!targetUrl) {
+                alert("Masukkan URL target terlebih dahulu!");
+                return;
+            }
 
-        // Event Listener Hijacking Test
-        document.addEventListener("click", function(event) {
-            console.log("Event Hijacked: ", event);
-            alert("Potential Event Listener XSS Detected!");
-        });
-
-        // Mutation Observer Bypass Test
-        let observer = new MutationObserver(mutations => {
-            mutations.forEach(mutation => {
-                console.log("Mutation detected: ", mutation);
-                alert("DOM Mutation Detected!");
-            });
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-
-        // Session Hijacking Simulation
-        function stealSession() {
-            document.cookie.split("; ").forEach(cookie => {
-                console.log("Stolen Cookie: ", cookie);
-                alert("Stolen Cookie: " + cookie);
+            fetch(targetUrl).then(response => response.text()).then(data => {
+                let encodedPayloads = encodePayload(data);
+                
+                document.getElementById("output").innerHTML = "Response Data: " + data;
+                document.getElementById("encodedOutput").innerHTML = `
+                    <p><b>URL Encoded:</b> ${encodedPayloads.urlEncoded}</p>
+                    <p><b>Base64 Encoded:</b> ${encodedPayloads.base64}</p>
+                    <p><b>HTML Entities:</b> ${encodedPayloads.htmlEntities}</p>
+                `;
+                
+                let iframe = document.getElementById("testIframe");
+                iframe.src = "javascript:'<script>alert(\"Iframe XSS\")</script>'";
+            }).catch(error => {
+                alert("Gagal mengambil data dari target: " + error);
             });
         }
-        setTimeout(stealSession, 3000);
     </script>
 </body>
 </html>
